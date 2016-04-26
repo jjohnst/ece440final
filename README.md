@@ -2,7 +2,7 @@
 ECE 440 Final Project
 
 
-1) git clone git@10.20.19.141/ "path to project location"
+1) git clone "path to project location"
 
 2) git config user.email youremail@clemson.edu
       -Always do this after cloning 

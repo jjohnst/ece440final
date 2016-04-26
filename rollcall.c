@@ -22,10 +22,7 @@ int main(int argc, char *argv[]){
     struct pcap_pkthdr header;          //Header that pcap gives
     const u_char *packet;               //Actual packet
 
-    /*Header Structs
-    ethernet_h *ethernet=NULL;
-    ip_h *ip=NULL;
-    tcp_h *tcp=NULL;*/
+    //Header Structs
     radiotap_h *radiotap=NULL;
     wifi_h *wifi=NULL;
 
@@ -45,14 +42,6 @@ int main(int argc, char *argv[]){
         return(2);
     }
     printf("Device: %s\nfilter: %s\n", device, filter);
-
-
-    //Open device for sniffing
-    //handle=pcap_open_live(device, BUFSIZ, 0 /*promisc mode*/, 1000, errbuf);
-    /*if(handle==NULL){
-        fprintf(stderr, "Couldn't open device %s: %s\n", device, errbuf);
-        return(2);
-    }*/
   
     //Get the network address and network mask
     pcap_lookupnet(device, &net, &mask, errbuf);
@@ -250,21 +239,8 @@ void print_packet(const u_char *packet, radiotap_h *radiotap, wifi_h *wifi){
     printf("WLAN src: %s\n", ether_ntoa(&wifi->src_addr));
     printf("WLAN dst: %s\n", ether_ntoa(&wifi->dst_addr));
 
-    /*
-    printf(" Size: %d bytes", size);
-
-    ethernet = (ethernet_h*) (packet);
-    printf("\n MAC src: %s", ether_ntoa(&ethernet->ether_src_host));
-    printf("\n MAC dest: %s", ether_ntoa(&ethernet->ether_dest_host));
-
-    ip = (ip_h*) (packet + sizeof(ethernet_h));
-    printf("\n IP src: %s", inet_ntoa(ip->ip_src));
-    printf("\n IP dest: %s", inet_ntoa(ip->ip_dst));
-
-    tcp = (tcp_h*) (packet + sizeof(ethernet_h) + sizeof(ip_h));
-    printf("\n Src port: %d", ntohs(tcp->src_port));
     printf("\n Dst port: %d\n", ntohs(tcp->dst_port));
-    */
+    printf("\n Src port: %d", ntohs(tcp->src_port));
 
     printf("-------------------------------\n\n");
 }

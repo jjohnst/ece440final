@@ -27,7 +27,7 @@ int main(int argc, char *argv[]){
     wifi_h *wifi=NULL;
 
     //What to filter on
-    filter="wlan src f4:f2:6d:17:23:e8";
+    filter="wlan";
 
     //Error checking for number of arguments
     if(argc<2){
@@ -238,9 +238,6 @@ void print_packet(const u_char *packet, radiotap_h *radiotap, wifi_h *wifi){
     wifi=(wifi_h *)(packet + size_radiotap);
     printf("WLAN src: %s\n", ether_ntoa(&wifi->src_addr));
     printf("WLAN dst: %s\n", ether_ntoa(&wifi->dst_addr));
-
-    printf("\n Dst port: %d\n", ntohs(tcp->dst_port));
-    printf("\n Src port: %d", ntohs(tcp->src_port));
 
     printf("-------------------------------\n\n");
 }

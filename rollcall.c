@@ -27,13 +27,16 @@ int main(int argc, char *argv[]){
     ip_h *ip=NULL;
     tcp_h *tcp=NULL;
 
+    //What to filter on
     filter="ether src f4:f2:6d:17:23:e8 && tcp";
 
-    //Grab the default wireless device
+    //Error checking for number of arguments
     if(argc<2){
         printf("Not enough arguments. Do -h for help.\n");
         exit(1);
     }
+
+    //Grab the default wireless device
     getCommandLine(argc, argv, &device, errbuf);
     if(device==NULL){
         fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
@@ -63,22 +66,30 @@ int main(int argc, char *argv[]){
     }
     
     
+    //Wait until you can actually grab a packet
     packet=NULL;
-    //Grab a packet
     while(packet==NULL)
         packet = pcap_next(handle, &header);
   
-    //Printing packet information
+    //Print packet information
     print_packet(packet, header.len, ethernet, ip, tcp);
     
     //Close the session
     pcap_close(handle);
 
+    //Thrown at the end for now just cause
     accessDatabase();
     
     return(0);
 }
 
+/* Purpose: Grab the command line arguments provided
+ *
+ * Arguments: argc, argv, device name, error array
+ *
+ * Returns: N/A
+ *
+ */
 void getCommandLine(int argc, char **argv, char **device, char *errbuf){
     int c;
     while ((c = getopt(argc, argv, "d:fh")) != -1)
@@ -98,10 +109,17 @@ void getCommandLine(int argc, char **argv, char **device, char *errbuf){
 }
 
 
+/* Purpose: Access the database to determine wether a student was present or absent
+ *
+ * Arguments: N/A
+ *
+ * Returns: N/A
+ *
+ */
 void accessDatabase(){
     char *addrs[4];
 	char *present[2];
-	char *absent[2];
+	//char *absent[2];
 	char command[COMMAND_SIZE];
 	MYSQL_RES *res_set;
 	int i, j, here;
@@ -169,6 +187,13 @@ void accessDatabase(){
 	mysql_close (conn);
 }
 
+/* Purpose: Grabs the contents of the database rows
+ *
+ * Arguments: databas connection, something, mac address array
+ *
+ * Returns: N/A
+ *
+ */
 void process_result_set(MYSQL *conn, MYSQL_RES *res_set, char *macs[]){
 	MYSQL_ROW row;
 	unsigned int i=0;
@@ -193,6 +218,15 @@ void process_result_set(MYSQL *conn, MYSQL_RES *res_set, char *macs[]){
 	}
 }
 
+
+/* Purpose: To print out the information in the packet that was sniffed
+ *
+ * Arguments: packet, size of the packet, ethernet struct, ip struct,
+ *            tcp struct
+ *
+ * Returns: N/A
+ *
+ */
 void print_packet(const u_char *packet, int size, ethernet_h *ethernet, ip_h *ip, tcp_h *tcp){
     printf("\n\n----------- Packet ------------\n");
     printf(" Size: %d bytes", size);

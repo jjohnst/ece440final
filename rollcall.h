@@ -19,7 +19,6 @@
 #define def_password "c0b60c6a" /* password (default = none) */
 #define def_db_name "heroku_89678d1e4934514" /* database to use (default = none) */
 #define COMMAND_SIZE 73
-//#define ETHER_ADDR_LEN 6
 
 /***************************************
  *                                     * 

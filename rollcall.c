@@ -22,13 +22,15 @@ int main(int argc, char *argv[]){
     struct pcap_pkthdr header;          //Header that pcap gives
     const u_char *packet;               //Actual packet
 
-    /*Header Structs*/
+    /*Header Structs
     ethernet_h *ethernet=NULL;
     ip_h *ip=NULL;
-    tcp_h *tcp=NULL;
+    tcp_h *tcp=NULL;*/
+    radiotap_h *radiotap=NULL;
+    wifi_h *wifi=NULL;
 
     //What to filter on
-    filter="ether src f4:f2:6d:17:23:e8 && tcp";
+    filter="wlan src f4:f2:6d:17:23:e8";
 
     //Error checking for number of arguments
     if(argc<2){
@@ -46,14 +48,21 @@ int main(int argc, char *argv[]){
 
 
     //Open device for sniffing
-    handle=pcap_open_live(device, BUFSIZ, 1 /*promisc mode*/, 1000, errbuf);
-    if(handle==NULL){
+    //handle=pcap_open_live(device, BUFSIZ, 0 /*promisc mode*/, 1000, errbuf);
+    /*if(handle==NULL){
         fprintf(stderr, "Couldn't open device %s: %s\n", device, errbuf);
         return(2);
-    }
+    }*/
   
     //Get the network address and network mask
     pcap_lookupnet(device, &net, &mask, errbuf);
+
+    //Create and activate handle to sniff network
+    handle=pcap_create(device, errbuf);
+    pcap_set_rfmon(handle, 1);
+    pcap_set_snaplen(handle, 2048); //Snapshot length
+    pcap_set_timeout(handle, 1000); // Timeout in miliseconds
+    pcap_activate(handle);
 
     //Compiles and sets the filter to sniff for
     if(pcap_compile(handle, &compiled_filter, filter, 0, mask)==-1){
@@ -72,7 +81,7 @@ int main(int argc, char *argv[]){
         packet = pcap_next(handle, &header);
   
     //Print packet information
-    print_packet(packet, header.len, ethernet, ip, tcp);
+    print_packet(packet, radiotap, wifi);
     
     //Close the session
     pcap_close(handle);
@@ -227,8 +236,21 @@ void process_result_set(MYSQL *conn, MYSQL_RES *res_set, char *macs[]){
  * Returns: N/A
  *
  */
-void print_packet(const u_char *packet, int size, ethernet_h *ethernet, ip_h *ip, tcp_h *tcp){
+void print_packet(const u_char *packet, radiotap_h *radiotap, wifi_h *wifi){
+    int size_radiotap;
+    
     printf("\n\n----------- Packet ------------\n");
+
+    radiotap=(struct radiotap_header *)packet;
+    size_radiotap=radiotap->it_len;
+    printf("Radiotap header length: %d\n", size_radiotap);
+
+    //Calculate 802.11 header length
+    wifi=(wifi_h *)(packet + size_radiotap);
+    printf("WLAN src: %s\n", ether_ntoa(&wifi->src_addr));
+    printf("WLAN dst: %s\n", ether_ntoa(&wifi->dst_addr));
+
+    /*
     printf(" Size: %d bytes", size);
 
     ethernet = (ethernet_h*) (packet);
@@ -242,6 +264,7 @@ void print_packet(const u_char *packet, int size, ethernet_h *ethernet, ip_h *ip
     tcp = (tcp_h*) (packet + sizeof(ethernet_h) + sizeof(ip_h));
     printf("\n Src port: %d", ntohs(tcp->src_port));
     printf("\n Dst port: %d\n", ntohs(tcp->dst_port));
+    */
 
     printf("-------------------------------\n\n");
 }

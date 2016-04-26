@@ -1,14 +1,15 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<unistd.h>
-#include<string.h>
-#include<getopt.h>
-#include<netinet/in.h>
-#include<pcap.h>
-#include<mysql/mysql.h>
-#include<sys/socket.h>
-#include<netinet/in.h>
-#include<arpa/inet.h>
+/* Rollcall File For ECE 440
+ *  
+ * Created by: Morgan McEntire
+ *             Ben Hindman
+ *             Isiah Hamilton
+ *             Josh Johnston
+ *
+ * Known Bugs:
+ *      filter doesn't work
+ *
+ */
+
 #include"rollcall.h"
 
 MYSQL *conn; //Pointer to connection handler
@@ -19,16 +20,20 @@ int main(int argc, char *argv[]){
     struct bpf_program compiled_filter; //Compiled filter expression
     bpf_u_int32 mask, net;              //Subnet mask and IP addr
     struct pcap_pkthdr header;          //Header that pcap gives
-    u_char *packet;               //Actual packet
+    const u_char *packet;               //Actual packet
 
     /*Header Structs*/
     ethernet_h *ethernet=NULL;
     ip_h *ip=NULL;
     tcp_h *tcp=NULL;
 
-    filter="";
+    filter="ether src f4:f2:6d:17:23:e8 && tcp";
 
     //Grab the default wireless device
+    if(argc<2){
+        printf("Not enough arguments. Do -h for help.\n");
+        exit(1);
+    }
     getCommandLine(argc, argv, &device, errbuf);
     if(device==NULL){
         fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
@@ -57,12 +62,15 @@ int main(int argc, char *argv[]){
         return(2);
     }
     
+    
+    packet=NULL;
     //Grab a packet
-    packet = pcap_next(handle, &header);
-   
+    while(packet==NULL)
+        packet = pcap_next(handle, &header);
+  
     //Printing packet information
     print_packet(packet, header.len, ethernet, ip, tcp);
-
+    
     //Close the session
     pcap_close(handle);
 
@@ -73,14 +81,16 @@ int main(int argc, char *argv[]){
 
 void getCommandLine(int argc, char **argv, char **device, char *errbuf){
     int c;
-    while ((c = getopt(argc, argv, "d:f")) != -1)
+    while ((c = getopt(argc, argv, "d:fh")) != -1)
 	    switch(c) {
             case 'd': *device=strdup(optarg); break;
             case 'f': *device=pcap_lookupdev(errbuf); break;
+            case 'h':
             default: 
                 printf("Rollcall command line options:\n");
                 printf("   -d device    device to sniff on\n");
                 printf("   -f           uses default device to sniff\n");
+                printf("   -h           shows this menu\n");
                 printf("------------------------------\n");
                 printf("Only use -d or -f. Not both.\n");
                 exit(1);
@@ -183,13 +193,13 @@ void process_result_set(MYSQL *conn, MYSQL_RES *res_set, char *macs[]){
 	}
 }
 
-void print_packet(u_char *packet, int size, ethernet_h *ethernet, ip_h *ip, tcp_h *tcp){
+void print_packet(const u_char *packet, int size, ethernet_h *ethernet, ip_h *ip, tcp_h *tcp){
     printf("\n\n----------- Packet ------------\n");
     printf(" Size: %d bytes", size);
 
     ethernet = (ethernet_h*) (packet);
-    printf("\n MAC src: %s", inet_ntoa(ethernet->ether_src_host));
-    printf("\n MAC dest: %s", inet_ntoa(ethernet->ether_dest_host));
+    printf("\n MAC src: %s", ether_ntoa(&ethernet->ether_src_host));
+    printf("\n MAC dest: %s", ether_ntoa(&ethernet->ether_dest_host));
 
     ip = (ip_h*) (packet + sizeof(ethernet_h));
     printf("\n IP src: %s", inet_ntoa(ip->ip_src));

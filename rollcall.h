@@ -1,9 +1,17 @@
-#include<netinet/in.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<string.h>
+#include<getopt.h>
+#include<pcap.h>
 #include<mysql/mysql.h>
-#include<sys/socket.h>
 #include<netinet/in.h>
 #include<arpa/inet.h>
-#include<mysql/mysql.h>
+#include<sys/socket.h>
+#include<net/ethernet.h>
+#include<sys/types.h>
+#include<netinet/if_ether.h>
+#include<netinet/ether.h>
 
 
 #define def_host_name "us-cdbr-iron-east-03.cleardb.net" /* host to connect to (default = localhost) */
@@ -11,7 +19,7 @@
 #define def_password "c0b60c6a" /* password (default = none) */
 #define def_db_name "heroku_89678d1e4934514" /* database to use (default = none) */
 #define COMMAND_SIZE 73
-#define ETHER_ADDR_LEN 14
+//#define ETHER_ADDR_LEN 6
 
 /***************************************
  *                                     * 
@@ -19,8 +27,8 @@
  *                                     *
  ***************************************/
 typedef struct ethernet_h_tag{
-    struct in_addr ether_dest_host; //the destination host address
-    struct in_addr ether_src_host; //the source host address
+    const struct ether_addr ether_dest_host; //the destination host address
+    const struct ether_addr ether_src_host; //the source host address
     u_short ether_type; //to check if its ip etc
 }ethernet_h;
 
@@ -46,7 +54,7 @@ typedef struct tcp_h_tag{
     u_short dst_port;   /* destination port */
 }tcp_h;
 
-void print_packet(u_char*, int, ethernet_h*, ip_h*, tcp_h*);
+void print_packet(const u_char*, int, ethernet_h*, ip_h*, tcp_h*);
 void getCommandLine(int, char**, char**, char*);
 void accessDatabase();
 void process_result_set(MYSQL *conn, MYSQL_RES *res_set, char *macs[]);

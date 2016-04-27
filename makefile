@@ -1,23 +1,27 @@
-# The makefile for MP1.
+#Builds rollcall and submit executables
+CC=gcc -Wall
+#correct includes can be found using mysql_config --cflags
+INCLUDES = -I/usr/local/mysql/include -fno-omit-frame-pointer -arch x86_64
+#correct mysql libs can be found by using mysql_config --libs
+LIBS = -L/usr/local/mysql/lib -lmysqlclient -lpthread -lz -lm -lssl -lcrypto -ldl -lpcap
+BINS = rollcall submit core
 
-INCLUDES = -I/usr/include/mysql/
-LIBS = -L/usr/include/mysql/ -L/usr/lib64/mysql -lmysqlclient -lpthread -lz -lm -lssl -lcrypto -ldl -lpcap
-
-rollcall: rollcall.o
-	gcc -Wall -g rollcall.o -o rollcall $(LIBS)
+all: rollcall  submit
 
 rollcall.o: rollcall.c rollcall.h
-	gcc -Wall -g -c $(INCLUDES) rollcall.c
+	$(CC) -c $(INCLUDES) rollcall.c
 
-sniff2: sniff2.c
-	gcc -Wall -g sniff2.c -o sniff2
+rollcall: rollcall.o
+	$(CC) -o rollcall rollcall.o $(LIBS)
 
-macsiff: macsniff.c
-	gcc -Wall -g sniff2.c -o sniff2
+submit.o: submit.c rollcall.h
+	$(CC) -c $(INCLUDES) submit.c
+
+submit: submit.o
+	$(CC) -o submit submit.o $(LIBS)
+
+clean:
+	rm $(BINS) *.o 
 
 run:
-	sudo ./rollcall -d wlp0s20u2
-
-clean :
-	rm -f *.o rollcall sniff2 macsniff core 
-
+	sudo ./rollcall -d en0

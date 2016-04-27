@@ -13,6 +13,7 @@
 #include"rollcall.h"
 
 MYSQL *conn; //Pointer to connection handler
+void change_channel(int new_channel);
 
 int main(int argc, char *argv[]){
     char *device=NULL, *filter=NULL, errbuf[PCAP_ERRBUF_SIZE];
@@ -27,7 +28,7 @@ int main(int argc, char *argv[]){
     wifi_h *wifi=NULL;
 
     //What to filter on
-    filter="wlan";
+    filter="";
 
     //Error checking for number of arguments
     if(argc<2){
@@ -49,32 +50,53 @@ int main(int argc, char *argv[]){
     //Create and activate handle to sniff network
     handle=pcap_create(device, errbuf);
     pcap_set_rfmon(handle, 1);
+    if(pcap_set_promisc(handle,1) == PCAP_ERROR_ACTIVATED){ //Capture packets that are not yours
+        printf("Could not set promiscious.\n");
+    }
     pcap_set_snaplen(handle, 2048); //Snapshot length
     pcap_set_timeout(handle, 1000); // Timeout in miliseconds
     pcap_activate(handle);
 
-    //Compiles and sets the filter to sniff for
-    if(pcap_compile(handle, &compiled_filter, filter, 0, mask)==-1){
-        fprintf(stderr, "Couldn't parse filter %s: %s\n", filter, pcap_geterr(handle));
-        return(2);
-    }
-    if (pcap_setfilter(handle, &compiled_filter) == -1) {
-        fprintf(stderr, "Couldn't install filter %s: %s\n", filter, pcap_geterr(handle));
-        return(2);
-    }
-    
-    
-    //Wait until you can actually grab a packet
-    packet=NULL;
-    while(packet==NULL)
-        packet = pcap_next(handle, &header);
-  
-    //Print packet information
-    print_packet(packet, radiotap, wifi);
-    
-    //Close the session
-    pcap_close(handle);
+    int i;
+    for(i=0; i<2; i++){
+        if(i==1){
+            //Close current session
+            pcap_close(handle);
 
+            filter="";
+            //change_channel(11);
+
+            handle=pcap_create(device, errbuf);
+            pcap_set_rfmon(handle, 1);
+            if(pcap_set_promisc(handle,1) == PCAP_ERROR_ACTIVATED){ //Capture packets that are not yours
+                printf("Could not set promiscious.\n");
+            }
+            pcap_set_snaplen(handle, 2048); //Snapshot length
+            pcap_set_timeout(handle, 1000); // Timeout in miliseconds
+            pcap_activate(handle); 
+        }
+        //Compiles and sets the filter to sniff for
+        if(pcap_compile(handle, &compiled_filter, filter, 0, mask)==-1){
+            fprintf(stderr, "Couldn't parse filter %s: %s\n", filter, pcap_geterr(handle));
+            return(2);
+        }
+        if (pcap_setfilter(handle, &compiled_filter) == -1) {
+            fprintf(stderr, "Couldn't install filter %s: %s\n", filter, pcap_geterr(handle));
+            return(2);
+        }
+    
+        int j=0;
+        //Wait until you can actually grab a packet
+        packet=NULL;
+        while(packet==NULL)
+            packet = pcap_next(handle, &header);
+  
+        //Print packet information
+        print_packet(packet, radiotap, wifi);
+    
+        //Close the session
+        pcap_close(handle);
+    }
     //Thrown at the end for now just cause
     accessDatabase();
     
@@ -240,4 +262,21 @@ void print_packet(const u_char *packet, radiotap_h *radiotap, wifi_h *wifi){
     printf("WLAN dst: %s\n", ether_ntoa(&wifi->dst_addr));
 
     printf("-------------------------------\n\n");
+}
+
+void change_channel(int new_channel){
+    char *command1 = "airport --disassociate";
+    FILE *fp = popen(command1, "r");
+    pclose(fp);
+    printf("Disassociated with previous channel.\n");
+
+    char *command2=malloc(20);
+    sprintf(command2, "airport --channel=%d", new_channel);
+
+    fp=popen(command2, "r");
+    pclose(fp);
+
+    free(command2);
+
+    printf("Now on channel: %d\n", new_channel);
 }

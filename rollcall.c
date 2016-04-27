@@ -1,282 +1,299 @@
-/* Rollcall File For ECE 440
- *  
- * Created by: Morgan McEntire
- *             Ben Hindman
- *             Isiah Hamilton
- *             Josh Johnston
- *
- * Known Bugs:
- *      filter doesn't work
- *
- */
-
-#include"rollcall.h"
-
-MYSQL *conn; //Pointer to connection handler
-void change_channel(int new_channel);
+#include "rollcall.h"
 
 int main(int argc, char *argv[]){
-    char *device=NULL, *filter=NULL, errbuf[PCAP_ERRBUF_SIZE];
+    char *device=NULL, errbuf[PCAP_ERRBUF_SIZE];
     pcap_t *handle;
     struct bpf_program compiled_filter; //Compiled filter expression
     bpf_u_int32 mask, net;              //Subnet mask and IP addr
     struct pcap_pkthdr header;          //Header that pcap gives
     const u_char *packet;               //Actual packet
+    char *addrs[CLASS_SIZE];
+    int i, j, filter_size;
+    int *channels;
+    FILE *fp = fopen("absences.log","w");
+    
+    const char s1[] = "wlan src ";
 
-    //Header Structs
-    radiotap_h *radiotap=NULL;
-    wifi_h *wifi=NULL;
+    /*Header Structs*/
+    radiotap_h *radiotap = NULL;
+    wifi_h *wifi = NULL;
+    
+    // GET MAC ADDRESSES 
+    //getMacsDb(addrs);
 
-    //What to filter on
-    filter="";
+    addrs[0] = "3c:15:c2:ed:b3:dc";
+    addrs[1] = "f4:5c:89:89:fd:93";
+    addrs[2] = "4d:a5:22:f1:b3:5e";
+    addrs[3] = "f4:f2:60:17:23:e8";
+    addrs[4] = "a4:5e:60:e7:a3:15";
 
-    //Error checking for number of arguments
-    if(argc<2){
-        printf("Not enough arguments. Do -h for help.\n");
-        exit(1);
+    int num_macs = sizeof(addrs)/sizeof(addrs[0]);
+    printf("Number of macs = %d\n", num_macs);
+    for(i=0; i < num_macs; i++){
+        printf("%s\n",addrs[i]);
     }
+    // GET list of Channels from user
 
+    int ch_length = 0;
+    channels=getChannels(&ch_length);
+    
+    
     //Grab the default wireless device
     getCommandLine(argc, argv, &device, errbuf);
     if(device==NULL){
         fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
         return(2);
     }
-    printf("Device: %s\nfilter: %s\n", device, filter);
+    printf("\nDevice: %s\n\n", device);
   
-    //Get the network address and network mask
     pcap_lookupnet(device, &net, &mask, errbuf);
 
-    //Create and activate handle to sniff network
-    handle=pcap_create(device, errbuf);
-    pcap_set_rfmon(handle, 1);
-    if(pcap_set_promisc(handle,1) == PCAP_ERROR_ACTIVATED){ //Capture packets that are not yours
-        printf("Could not set promiscious.\n");
-    }
-    pcap_set_snaplen(handle, 2048); //Snapshot length
-    pcap_set_timeout(handle, 1000); // Timeout in miliseconds
-    pcap_activate(handle);
-
-    int i;
-    for(i=0; i<2; i++){
-        if(i==1){
-            //Close current session
+    filter_size = 100;// +1 for \0 terminator 
+    char filter[filter_size];
+    //length of the array of channels
+    for (i=0; i < ch_length; i++) {
+        
+        // close previous session
+        if (i>0) {
             pcap_close(handle);
-
-            filter="";
-            //change_channel(11);
-
-            handle=pcap_create(device, errbuf);
-            pcap_set_rfmon(handle, 1);
-            if(pcap_set_promisc(handle,1) == PCAP_ERROR_ACTIVATED){ //Capture packets that are not yours
-                printf("Could not set promiscious.\n");
-            }
-            pcap_set_snaplen(handle, 2048); //Snapshot length
-            pcap_set_timeout(handle, 1000); // Timeout in miliseconds
-            pcap_activate(handle); 
         }
-        //Compiles and sets the filter to sniff for
-        if(pcap_compile(handle, &compiled_filter, filter, 0, mask)==-1){
-            fprintf(stderr, "Couldn't parse filter %s: %s\n", filter, pcap_geterr(handle));
-            return(2);
-        }
-        if (pcap_setfilter(handle, &compiled_filter) == -1) {
-            fprintf(stderr, "Couldn't install filter %s: %s\n", filter, pcap_geterr(handle));
-            return(2);
-        }
-    
-        int j=0;
-        //Wait until you can actually grab a packet
-        packet=NULL;
-        while(packet==NULL)
-            packet = pcap_next(handle, &header);
-  
-        //Print packet information
-        print_packet(packet, radiotap, wifi);
-    
-        //Close the session
-        pcap_close(handle);
+        change_channel(channels[i]);
+        
+        handle = pcap_create(device, errbuf);
+        pcap_set_rfmon(handle, 1);
+        if (pcap_set_promisc(handle, 1) == PCAP_ERROR_ACTIVATED) /* Capture packets that are not yours */
+            printf("Could not set promiscious\n");
+        pcap_set_snaplen(handle, 2048); /* Snapshot length */
+        pcap_set_timeout(handle, 1000); /* Timeout in milliseconds */
+        pcap_activate(handle);
+        
+        
+        for (j = 0; j < num_macs; j++) { // hard coded 3 for now since we have 3 addrss
+            if(addrs[j] != NULL){
+                strcpy(filter, s1);
+                strcat(filter, addrs[j]);
+                
+                printf("FILTER = %s\n",filter);
+                
+                //Compiles and sets the filter to sniff for
+                if(pcap_compile(handle, &compiled_filter, filter, 0, mask)==-1){
+                    fprintf(stderr, "Couldn't parse filter %s: %s\n", filter, pcap_geterr(handle));
+                    return(2);
+                }
+                if (pcap_setfilter(handle, &compiled_filter) == -1) {
+                    fprintf(stderr, "Couldn't install filter %s: %s\n", filter, pcap_geterr(handle));
+                    return(2);
+                }
+                
+                int count = 0;
+                packet=NULL;
+                //Grab a packet
+                while (packet==NULL && count<3) {
+                    packet = pcap_next(handle, &header);
+                    count++;
+                }
+                
+                //Printing packet information
+                if (packet!=NULL){
+                    print_packet(packet, header.len, radiotap, wifi); 
+                    addrs[j] = NULL;  
+                }
+            } 
+        }       
     }
-    //Thrown at the end for now just cause
-    accessDatabase();
     
+    for (i=0;i<num_macs;i++) {
+        if (addrs[i]!=NULL) {
+            fprintf(fp, "%s\n", addrs[i]);
+            //fprintf(fp, "\n");
+        }
+    }
+    fclose(fp);
+    free(channels);
     return(0);
 }
 
-/* Purpose: Grab the command line arguments provided
- *
- * Arguments: argc, argv, device name, error array
- *
- * Returns: N/A
- *
- */
 void getCommandLine(int argc, char **argv, char **device, char *errbuf){
     int c;
-    while ((c = getopt(argc, argv, "d:fh")) != -1)
+    while ((c = getopt(argc, argv, "d:f")) != -1)
 	    switch(c) {
             case 'd': *device=strdup(optarg); break;
             case 'f': *device=pcap_lookupdev(errbuf); break;
-            case 'h':
             default: 
                 printf("Rollcall command line options:\n");
                 printf("   -d device    device to sniff on\n");
                 printf("   -f           uses default device to sniff\n");
-                printf("   -h           shows this menu\n");
                 printf("------------------------------\n");
                 printf("Only use -d or -f. Not both.\n");
                 exit(1);
         }
 }
 
+void getMacsDb(char *mac_addrs[]){
+    char *present[2];
+    char *absent[2];
+    char command[COMMAND_SIZE];
+    MYSQL_RES *res_set;
+    int i, j, here;
 
-/* Purpose: Access the database to determine wether a student was present or absent
- *
- * Arguments: N/A
- *
- * Returns: N/A
- *
- */
-void accessDatabase(){
-    char *addrs[4];
-	char *present[2];
-	//char *absent[2];
-	char command[COMMAND_SIZE];
-	MYSQL_RES *res_set;
-	int i, j, here;
+    conn = mysql_init (NULL);
+    if (conn == NULL){
+        fprintf (stderr, "mysql_init() failed (probably out of memory)\n");
+        exit (1);
+    }
 
-	conn = mysql_init (NULL);
-	if (conn == NULL){
-		fprintf (stderr, "mysql_init() failed (probably out of memory)\n");
-		exit (1);
-	}
+    if (mysql_real_connect (
+                conn, //Pointer to connection handler 
+                def_host_name, //Host to connect to 
+                def_user_name, //User name 
+                def_password, //Password 
+                def_db_name, //Database to use 
+                0, //Port (use default) 
+                NULL, //Socket (use default) 
+                0) //Flags (none) 
+            == NULL)
+    {
+        fprintf (stderr, "mysql_real_connect() failed:\nError %u (%s)\n", mysql_errno (conn), mysql_error (conn));
+        exit (1);
+    }
 
-	if (mysql_real_connect (
-				conn, //Pointer to connection handler 
-				def_host_name, //Host to connect to 
-				def_user_name, //User name 
-				def_password, //Password 
-				def_db_name, //Database to use 
-				0, //Port (use default) 
-				NULL, //Socket (use default) 
-				0) //Flags (none) 
-			== NULL)
-	{
-		fprintf (stderr, "mysql_real_connect() failed:\nError %u (%s)\n", mysql_errno (conn), mysql_error (conn));
-		exit (1);
-	}
-
-	if (mysql_query (conn, "SELECT * from student") != 0){
-		printf("mysql_query() failed\n");
+    if (mysql_query (conn, "SELECT * from student") != 0){
+        printf("mysql_query() failed\n");
     }else{
-		res_set = mysql_store_result (conn); // generate result set
-		if (res_set == NULL){
-			printf("mysql_store_result() failed\n");
+        res_set = mysql_store_result (conn); // generate result set
+        if (res_set == NULL){
+            printf("mysql_store_result() failed\n");
         }else{
-			//process result set, then deallocate it
-			process_result_set (conn, res_set, addrs);
-			mysql_free_result (res_set);
-		}
-	}
+            //process result set, then deallocate it
+            process_result_set (conn, res_set, mac_addrs);
+            mysql_free_result (res_set);
+        }
+    }
 
-	//based on reading packets
-	present[0] = addrs[0];
-	present[1] = addrs[1];
+    //based on reading packets
+    present[0] = mac_addrs[0];
+    present[1] = mac_addrs[1];
 
-	//determine who's absent
-	//look at each value in the addr array and determine if it is in the present array
-	for(i =0; i < 4; i++){
-		for(j=0; j < 2; j++){
-			if(strcmp(addrs[i], present[j]) == 0){
-				//student is present
-				here = 1;
-			}
-		}
-
-		if(here == 0){
-			//mark absent in database
-			snprintf(command, COMMAND_SIZE, "UPDATE student SET absences = absences + 1 WHERE mac='%s'", addrs[i]);
-			if (mysql_query (conn, command) != 0){
-				printf("mysql_query() failed\n");
-            }else{
-				printf("Student marked absent\n");
-			}
-		}
-
-		here =0;
-	}
-	mysql_close (conn);
+    mysql_close (conn);
 }
 
-/* Purpose: Grabs the contents of the database rows
- *
- * Arguments: databas connection, something, mac address array
- *
- * Returns: N/A
- *
- */
+//get mac addresses from db and store in macs array
 void process_result_set(MYSQL *conn, MYSQL_RES *res_set, char *macs[]){
-	MYSQL_ROW row;
-	unsigned int i=0;
+    MYSQL_ROW row;
+    unsigned int i=0;
 
-	while ((row = mysql_fetch_row (res_set)) != NULL){
-		macs[i]= row[1];
-		i++;
-		
-		// for (i = 0; i < mysql_num_fields (res_set); i++)
-		// {
-		// 	if (i > 0)
-		// 		fputc ('\t', stdout);
-		// 	printf ("%s", row[i] != NULL ? row[i] : "NULL");
-		// }
-		// fputc ('\n', stdout);
-	}
+    while ((row = mysql_fetch_row (res_set)) != NULL){
+        macs[i]= row[1];
+        i++;
+    }
 
-	if (mysql_errno (conn) != 0){
-		printf("mysql_fetch_row() failed\n");
-	}else{
-		printf ("%lu rows returned\n", (unsigned long) mysql_num_rows (res_set));
-	}
+    if (mysql_errno (conn) != 0){
+        printf("mysql_fetch_row() failed\n");
+    }else{
+        //printf ("%lu rows returned\n", (unsigned long) mysql_num_rows (res_set));
+    }
 }
 
 
-/* Purpose: To print out the information in the packet that was sniffed
- *
- * Arguments: packet, size of the packet, ethernet struct, ip struct,
- *            tcp struct
- *
- * Returns: N/A
- *
- */
-void print_packet(const u_char *packet, radiotap_h *radiotap, wifi_h *wifi){
-    int size_radiotap;
+void change_channel(int new_channel) {
+    /*if mac with airport utility*/
     
-    printf("\n\n----------- Packet ------------\n");
-
-    radiotap=(struct radiotap_header *)packet;
-    size_radiotap=radiotap->it_len;
-    printf("Radiotap header length: %d\n", size_radiotap);
-
-    //Calculate 802.11 header length
-    wifi=(wifi_h *)(packet + size_radiotap);
-    printf("WLAN src: %s\n", ether_ntoa(&wifi->src_addr));
-    printf("WLAN dst: %s\n", ether_ntoa(&wifi->dst_addr));
-
-    printf("-------------------------------\n\n");
-}
-
-void change_channel(int new_channel){
     char *command1 = "airport --disassociate";
     FILE *fp = popen(command1, "r");
     pclose(fp);
-    printf("Disassociated with previous channel.\n");
+    printf("Disassociated with previous channel\n");
 
-    char *command2=malloc(20);
-    sprintf(command2, "airport --channel=%d", new_channel);
+    char *command2 = malloc(20);
+    sprintf(command2, "airport --channel=%d",new_channel);
 
-    fp=popen(command2, "r");
+    fp = popen(command2, "r");
     pclose(fp);
-
+    
+    printf("Now on channel: %d\n\n", new_channel);
     free(command2);
+    
+}
 
-    printf("Now on channel: %d\n", new_channel);
+void print_packet(const u_char *packet, int size, radiotap_h *radiotap, wifi_h *wifi){
+    int size_radiotap;
+    
+    //printf("\n\n----------- Packet ------------\n");
+    
+    /* Get Radiotap header length (variable) */
+    radiotap = (struct radiotap_header*)(packet);
+    size_radiotap = radiotap->it_len;
+    
+    //printf("\nRadiotap header length: %d\n", size_radiotap);
+    
+    /* Calculate 802.11 header length (variable) */
+    wifi = (wifi_h *)(packet + size_radiotap);
+    
+    printf("\tFound %s ", ether_ntoa(&wifi->sa));
+    printf("transmitting to %s\n", ether_ntoa(&wifi->da));
+    
+    
+    /*printf(" Size: %d bytes", size);
+    
+    radiotap = (radiotap_h*) (packet);
+    
+    printf("\n MAC src: %s", ether_ntoa(&ethernet->ether_src_host));
+    printf("\n MAC dest: %s", ether_ntoa(&ethernet->ether_dest_host));
+    
+    ip = (ip_h*) (packet + sizeof(ethernet_h));
+    printf("\n IP src: %s", inet_ntoa(ip->ip_src));
+    printf("\n IP dest: %s", inet_ntoa(ip->ip_dst));
+    
+    tcp = (tcp_h*) (packet + sizeof(ethernet_h) + sizeof(ip_h));
+    printf("\n Src port: %d", ntohs(tcp->src_port));
+    printf("\n Dst port: %d\n", ntohs(tcp->dst_port));
+     */
+    //printf("-------------------------------\n\n");
+}
+
+int* getChannels(int *count){
+    char path[1035];
+    char channel[4];
+    char full_channel[4];
+    int *ichannels=malloc(50*sizeof(int)); //freed in main program at bottom
+    FILE *fp;
+    int temp;
+    int i;
+    int check;
+    
+    //Open airport and grep for eduroam
+    fp=popen("airport -s | grep eduroam", "r");
+    if(fp==NULL){
+        printf("Failed to run command to grab channels.\n");
+        exit(1);
+    }
+    
+    while (fgets(path, sizeof(path)-1, fp) != NULL) {
+        channel[0] = path[56];
+        channel[1] = path[57];
+        channel[2] = path[58];
+        channel[3] = '\0';
+
+        //Combine to a string then convert to an int
+        sprintf(full_channel, "%c%c%c",channel[0],channel[1],channel[2]);
+        temp = (int) strtol(full_channel, (char **)NULL, 10);
+        
+        check = 0;
+        i=0;
+        while (i < *count) {
+            if (temp==ichannels[i]) {
+                check = 1;
+            }
+            i++;
+        }
+        if (check==0) {
+            ichannels[(*count)++] = temp;
+            //Prints the channels
+            printf("%d\n",ichannels[(*count)-1]);
+        }
+        
+    }
+    /* close */
+    pclose(fp);
+    
+    return ichannels;
 }

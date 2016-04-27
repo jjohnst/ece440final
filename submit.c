@@ -1,3 +1,10 @@
+/*
+* Program: submit.c
+* Name: Joshua Johnston, Morgan McEntire
+* Date: 4/27/2016
+* Purpose: Reads in MACs from log file and updates database
+* Assumptions: log file is stored at absences.log, rollcall executable has been run
+*/
 #include "rollcall.h"
 
 int main(void)
@@ -13,7 +20,7 @@ int main(void)
         fprintf (stderr, "mysql_init() failed (probably out of memory)\n");
         exit (1);
     }
-
+    //conncet to database
     if (mysql_real_connect (
                 conn, //Pointer to connection handler 
                 def_host_name, //Host to connect to 
@@ -32,6 +39,7 @@ int main(void)
     if (fp == NULL)
         exit(2);
 
+    //read in log file line by line and update database
     while ((read = getline(&line, &len, fp)) != -1) {
         line[17] = '\0'; //put null at end of string
         snprintf(command, COMMAND_SIZE, "UPDATE student SET absences = absences + 1 WHERE mac='%s'", line);
@@ -46,5 +54,5 @@ int main(void)
 
     if (line)
         free(line);
-    exit(EXIT_SUCCESS);
+    exit(0);
 }

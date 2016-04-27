@@ -15,9 +15,8 @@
 #define def_user_name "bbbb6dc727647c" /* user name (default = your login name) */
 #define def_password "c0b60c6a" /* password (default = none) */
 #define def_db_name "heroku_89678d1e4934514" /* database to use (default = none) */
-#define COMMAND_SIZE 74
-#define CLASS_SIZE 5
-//#define ETHER_ADDR_LEN 14
+#define COMMAND_SIZE 74     //length of SQL query
+#define CLASS_SIZE 5        //number of mac addresses expected from DB
 
 #define SIZE_ETHERNET 14
 #define	T_DATA 0x2

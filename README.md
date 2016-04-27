@@ -1,7 +1,7 @@
 # ece440final
 ECE 440 Final Project - Rollcall
 
-*Must have MySQL install on machine.
+*Must have MySQL and airport install on machine.
 
 How to compile:
   1. Download all the files and put them in one location. 
@@ -11,10 +11,9 @@ How to compile:
 How to run:
 ./rollcall requires sudo privileges and takes a command line argument. Typying ./rollcall -h will display the different options. A sample command to run rollcall is "sudo ./rollcall -f". To run the submit program, simply type ./submit.
 
-The file might need to be configured depending on the database. The variables to configure are in the header file. 
+The database variables may need to be configured. The variables are located in rollcall.h
 
-
-
+-----------------------------------
 
 Basic GitHub Commands:
 1) git clone "path to project location"

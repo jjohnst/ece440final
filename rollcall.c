@@ -199,7 +199,7 @@ void change_channel(int new_channel) {
     char *command1 = "airport --disassociate";
     FILE *fp = popen(command1, "r");
     pclose(fp);
-    printf("Disassociated with previous channel\n");
+    printf("Disassociated with previous channel.\n");
 
     char *command2 = malloc(20);
     sprintf(command2, "airport --channel=%d",new_channel);
@@ -207,7 +207,7 @@ void change_channel(int new_channel) {
     fp = popen(command2, "r");
     pclose(fp);
     
-    printf("Now on channel: %d\n\n", new_channel);
+    printf("Now on channel: %d.\n\n", new_channel);
     free(command2);
     
 }
@@ -265,6 +265,7 @@ int* getChannels(int *count){
         exit(1);
     }
     
+    printf("Channels: ");
     while (fgets(path, sizeof(path)-1, fp) != NULL) {
         channel[0] = path[56];
         channel[1] = path[57];

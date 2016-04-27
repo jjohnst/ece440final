@@ -71,7 +71,7 @@ int main(int argc, char *argv[]){
                 strcpy(filter, s1);
                 strcat(filter, addrs[j]);
                 
-                printf("Filter: %s\n",filter);
+                printf("Looking for: %s\n",addrs[j]);
                 
                 //Compiles and sets the filter to sniff for
                 if(pcap_compile(handle, &compiled_filter, filter, 0, mask)==-1){

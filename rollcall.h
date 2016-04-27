@@ -53,6 +53,7 @@ typedef struct wifi_header {
     u_int16_t seq_ctrl;
 } wifi_h;
 
+void change_channel(int new_channel);
 void print_packet(const u_char*, radiotap_h*, wifi_h*);
 void getCommandLine(int, char**, char**, char*);
 void accessDatabase();

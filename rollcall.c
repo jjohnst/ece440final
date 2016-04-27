@@ -28,15 +28,13 @@ int main(int argc, char *argv[]){
     addrs[4] = "a4:5e:60:e7:a3:15";
 
     int num_macs = sizeof(addrs)/sizeof(addrs[0]);
-    printf("Number of macs = %d\n", num_macs);
-    for(i=0; i < num_macs; i++){
+    //printf("Number of macs = %d\n", num_macs);
+    /*for(i=0; i < num_macs; i++){
         printf("%s\n",addrs[i]);
-    }
-    // GET list of Channels from user
+    }*/
 
     int ch_length = 0;
     channels=getChannels(&ch_length);
-    
     
     //Grab the default wireless device
     getCommandLine(argc, argv, &device, errbuf);
@@ -44,7 +42,7 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
         return(2);
     }
-    printf("\nDevice: %s\n\n", device);
+    //printf("\nDevice: %s\n\n", device);
   
     pcap_lookupnet(device, &net, &mask, errbuf);
 
@@ -68,12 +66,12 @@ int main(int argc, char *argv[]){
         pcap_activate(handle);
         
         
-        for (j = 0; j < num_macs; j++) { // hard coded 3 for now since we have 3 addrss
+        for (j = 0; j < num_macs; j++) {
             if(addrs[j] != NULL){
                 strcpy(filter, s1);
                 strcat(filter, addrs[j]);
                 
-                printf("FILTER = %s\n",filter);
+                printf("Filter: %s\n",filter);
                 
                 //Compiles and sets the filter to sniff for
                 if(pcap_compile(handle, &compiled_filter, filter, 0, mask)==-1){
@@ -228,7 +226,7 @@ void print_packet(const u_char *packet, int size, radiotap_h *radiotap, wifi_h *
     /* Calculate 802.11 header length (variable) */
     wifi = (wifi_h *)(packet + size_radiotap);
     
-    printf("\tFound %s ", ether_ntoa(&wifi->sa));
+    printf("  Found %s ", ether_ntoa(&wifi->sa));
     printf("transmitting to %s\n", ether_ntoa(&wifi->da));
     
     
@@ -288,10 +286,11 @@ int* getChannels(int *count){
         if (check==0) {
             ichannels[(*count)++] = temp;
             //Prints the channels
-            printf("%d\n",ichannels[(*count)-1]);
+            printf("%d, ",ichannels[(*count)-1]);
         }
         
     }
+    printf("\n");
     /* close */
     pclose(fp);
     

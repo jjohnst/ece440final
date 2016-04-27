@@ -1,24 +1,24 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<unistd.h>
-#include<string.h>
-#include<getopt.h>
-#include<pcap.h>
-#include<mysql/mysql.h>
-#include<netinet/in.h>
-#include<arpa/inet.h>
-#include<sys/socket.h>
-#include<net/ethernet.h>
-#include<sys/types.h>
-#include<netinet/if_ether.h>
-#include<netinet/ether.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <getopt.h>
+#include <pcap.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/if_ether.h>
+#include <mysql.h>
 
 
 #define def_host_name "us-cdbr-iron-east-03.cleardb.net" /* host to connect to (default = localhost) */
 #define def_user_name "bbbb6dc727647c" /* user name (default = your login name) */
 #define def_password "c0b60c6a" /* password (default = none) */
 #define def_db_name "heroku_89678d1e4934514" /* database to use (default = none) */
-#define COMMAND_SIZE 73
+#define COMMAND_SIZE 74
+#define CLASS_SIZE 5
+//#define ETHER_ADDR_LEN 14
+
 #define SIZE_ETHERNET 14
 #define	T_DATA 0x2
 #define	ETHERTYPE_IP		0x0800	/* IP protocol */
@@ -33,11 +33,6 @@
 
 typedef u_int tcp_seq;
 
-/***************************************
- *                                     * 
- *   Structs to represent headers      *
- *                                     *
- ***************************************/
 typedef struct radiotap_header {
     u_int8_t	it_version;	/* set to 0 */
     u_int8_t	it_pad;
@@ -47,14 +42,18 @@ typedef struct radiotap_header {
 typedef struct wifi_header {
     u_int16_t fc;
     u_int16_t duration;
-    const struct ether_addr dst_addr;
-    const struct ether_addr src_addr;
+    const struct ether_addr da;
+    const struct ether_addr sa;
     u_int8_t bssid[6];
     u_int16_t seq_ctrl;
 } wifi_h;
 
+MYSQL *conn; /* pointer to connection handler */
+
+//void set_filter(char *mac, char *filter);
 void change_channel(int new_channel);
-void print_packet(const u_char*, radiotap_h*, wifi_h*);
+void print_packet(const u_char*, int, radiotap_h*, wifi_h*);
 void getCommandLine(int, char**, char**, char*);
-void accessDatabase();
+void getMacsDb(char *mac_addrs[]);
 void process_result_set(MYSQL *conn, MYSQL_RES *res_set, char *macs[]);
+int* getChannels(int *count);

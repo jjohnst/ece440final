@@ -18,7 +18,7 @@ The database variables may need to be configured. The variables are located in r
 Basic GitHub Commands:
 1) git clone "path to project location"
 
-2) git config user.email youremail@clemson.edu
+2) git config user.email youremail@example.com
       -Always do this after cloning 
       
 3) git config user.name "Your name" 

@@ -1,7 +1,7 @@
 # ece440final
 ECE 440 Final Project - Rollcall
 
-*Must have MySQL and airport install on machine.
+*Must have MySQL and airport installed on machine.
 
 How to compile:
   1. Download all the files and put them in one location. 
